@@ -29,6 +29,7 @@ from allauth.account.views import login
 from .views.administration import administration, test_email, administration_stats_api
 from .views.dashboard import dashboard
 from .views.pages import project_pages
+from api.views import api_docs
 
 # Note: Using standard Django admin login for staff authentication
 # allauth login is available at /login/ for regular users
@@ -68,6 +69,10 @@ urlpatterns = [
     path('administration/', administration, name='administration'),
     path('test_email/', test_email, name='test_email'),
     path('api/administration/stats/', administration_stats_api, name='administration_stats_api'),
+
+    # Versioned REST API
+    path('api/v1/', include('api.urls')),
+    path('api/v1/docs/', api_docs, name='api_docs'),
 
     # """
     # Healthcheck APIs

@@ -118,6 +118,8 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
     'rest_framework',
     'rest_framework.authtoken',
+    'drf_spectacular',
+    'api',
     'storages',
     'django_celery_beat',
     'django_cotton',
@@ -318,5 +320,36 @@ if not ALERTMANAGER_WEBHOOK_URL:
     if PORT and PORT != '80' and PORT != '443':
         ALERTMANAGER_WEBHOOK_URL += f':{PORT}'
 
-ALERTMANAGER_WEBHOOK_URL += f'/alert/{SECRET_KEY}/' 
+ALERTMANAGER_WEBHOOK_URL += f'/alert/{SECRET_KEY}/'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'api.permissions.IsApprovedUser',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'ALLOWED_VERSIONS': ['v1'],
+    'DEFAULT_VERSION': 'v1',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'FromEdwin Monitor API',
+    'DESCRIPTION': 'REST API for managing monitoring projects, availability, pages, incidents, and reports.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'SERVE_PERMISSIONS': ['api.permissions.IsApprovedUser'],
+    'SERVE_AUTHENTICATION': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
 
