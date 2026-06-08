@@ -26,7 +26,7 @@ FromEdwin Monitor is a highly opinionated implementation of open-source monitori
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.12+ (tested with 3.14)
 - Docker & Docker Compose
 - Git
 

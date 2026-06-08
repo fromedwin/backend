@@ -8,6 +8,10 @@ from .timings import DEV;
 # Override debug mode for development
 DEBUG = True
 
+# Allow local development without a .env file
+if not SECRET_KEY:
+    SECRET_KEY = 'django-insecure-local-dev-only'
+
 # Development-specific allowed hosts
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'host.docker.internal']
 
@@ -25,7 +29,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Development-specific static files
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'fromedwin', 'static'),
+    os.path.join(BASE_DIR, 'static'),
 ]
 
 # Development-specific middleware (keep django_browser_reload for dev)
