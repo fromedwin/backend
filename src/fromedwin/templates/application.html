@@ -242,10 +242,13 @@
                   </a>
                 {% endif %}
               </div>
-              <a href="{% url 'logout' %}?next=/"
-                 class="text-gray-600 hover:bg-gray-100 hover:text-gray-900 group flex items-center rounded-md px-2 py-2 text-base font-medium">
-                Logout
-              </a>
+              <form method="post" action="{% url 'logout' %}?next=/">
+                {% csrf_token %}
+                <button type="submit"
+                        class="text-gray-600 hover:bg-gray-100 hover:text-gray-900 group flex items-center rounded-md px-2 py-2 text-base font-medium w-full text-left">
+                  Logout
+                </button>
+              </form>
             </nav>
           </div>
           <div class="flex flex-shrink-0 border-t border-gray-200 p-4">
@@ -540,10 +543,13 @@
                     <span class="truncate">Administration</span>
                   </a>
                 {% endif %}
-                <a href="{% url 'logout' %}?next=/"
-                   class="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
-                  <span class="truncate">Logout</span>
-                </a>
+                <form method="post" action="{% url 'logout' %}?next=/">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full text-left">
+                    <span class="truncate">Logout</span>
+                  </button>
+                </form>
               </div>
             </div>
           </nav>

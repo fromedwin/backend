@@ -403,4 +403,5 @@ class DashboardView(APIView):
 @login_required
 @waiting_list_approved_only()
 def api_docs(request):
-    return render(request, 'api/docs.html')
+    token, _ = Token.objects.get_or_create(user=request.user)
+    return render(request, 'api/docs.html', {'api_token': token.key})

@@ -19,9 +19,12 @@
           <a href="{% url 'user_delete' %}" class="whitespace-nowrap font-medium text-red-700 hover:text-red-600">
             Delete your account
           </a>
-          <a href="{% url 'logout' %}?next=/" class="whitespace-nowrap font-medium text-black-700 hover:text-black-600">
-            Logout
-          </a>
+          <form method="post" action="{% url 'logout' %}?next=/" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="whitespace-nowrap font-medium text-black-700 hover:text-black-600">
+              Logout
+            </button>
+          </form>
         </div>
       </div>
     </div>
