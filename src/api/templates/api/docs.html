@@ -34,14 +34,16 @@
         <div>
           <dt class="font-medium text-gray-700">Authentication</dt>
           <dd class="mt-1 text-gray-600">
-            Token header on every request:
-            <code class="bg-white px-2 py-1 rounded border">Authorization: Token &lt;your-token&gt;</code>
+            Bearer JWT from the ShellUI identity service on every request:
+            <code class="bg-white px-2 py-1 rounded border">Authorization: Bearer &lt;access-token&gt;</code>
           </dd>
         </div>
         <div>
-          <dt class="font-medium text-gray-700">Your API token</dt>
-          <dd class="mt-1">
-            <code class="bg-white px-2 py-1 rounded border font-mono text-sm break-all">{{ api_token }}</code>
+          <dt class="font-medium text-gray-700">Identity service</dt>
+          <dd class="mt-1 text-gray-600">
+            Tokens are issued by
+            <a href="{{ shellui_jwt_origin }}" class="text-emerald-600 hover:text-emerald-700 font-mono text-sm">{{ shellui_jwt_origin }}</a>
+            (sign in via the web app, then use <code class="bg-white px-1 rounded border">settings.accessToken</code>).
           </dd>
         </div>
         <div>

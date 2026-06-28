@@ -110,6 +110,11 @@ EMAIL_USE_TLS=True
 
 ### External Services
 ```bash
+# ShellUI JWT authentication (REST API)
+SHELLUI_JWT_ORIGIN=http://localhost:8000
+SHELLUI_JWT_ALGORITHMS=RS256,ES256,EdDSA
+CORS_ALLOWED_ORIGINS=https://app.fromedwin.com,http://localhost:4000
+
 # Sentry (Error Tracking)
 SENTRY_DSN=https://your-sentry-dsn
 SENTRY_ENVIRONMENT=production

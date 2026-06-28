@@ -64,6 +64,21 @@ FromEdwin Monitor is a highly opinionated implementation of open-source monitori
 
 That's it! Your monitoring system is now running locally.
 
+## API authentication
+
+The REST API at `/api/v1/` accepts **ShellUI JWT tokens only** (`Authorization: Bearer <token>`). Tokens are issued by the ShellUI identity service (default: [id.shellui.com](https://id.shellui.com)).
+
+Configure these environment variables in `.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `SHELLUI_JWT_ORIGIN` | Identity service URL (default: `https://id.shellui.com`; JWKS at `{origin}/.well-known/jwks.json`) |
+| `SHELLUI_JWT_ALGORITHMS` | Allowed JWT algorithms for JWKS verification (default: `RS256,ES256,EdDSA`) |
+| `SHELLUI_JWT_SECRET` | Optional legacy HS256 shared secret (only needed if not using JWKS) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated web app origins allowed to call the API |
+
+The [web app](../webapp/) sends the ShellUI `accessToken` to the backend. Set `VITE_BACKEND_URL` in the web app to point at this server (`http://localhost:8000` in development, `https://fromedwin.com` in production).
+
 ## 🐳 Docker Management
 
 The project includes a convenient script (`fromedwin`) to manage Docker services:

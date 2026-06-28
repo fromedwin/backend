@@ -116,6 +116,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
@@ -156,6 +157,7 @@ MIDDLEWARE = (
     'allauth.account.middleware.AccountMiddleware',
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -323,9 +325,30 @@ if not ALERTMANAGER_WEBHOOK_URL:
 ALERTMANAGER_WEBHOOK_URL += f'/alert/{SECRET_KEY}/'
 
 
+def _env_csv(name, default=()):
+    raw = os.getenv(name, '').strip()
+    if not raw:
+        return list(default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
+# ShellUI identity service (JWT issuer). JWKS is at {origin}/.well-known/jwks.json.
+SHELLUI_JWT_ORIGIN = os.getenv('SHELLUI_JWT_ORIGIN', 'https://id.shellui.com').rstrip('/')
+# Optional legacy HS256 shared secret (prefer JWKS when unset).
+SHELLUI_JWT_SECRET = os.getenv('SHELLUI_JWT_SECRET', '')
+SHELLUI_JWT_ALGORITHM = os.getenv('SHELLUI_JWT_ALGORITHM', 'HS256')
+SHELLUI_JWT_ALGORITHMS = _env_csv(
+    'SHELLUI_JWT_ALGORITHMS',
+    ('RS256', 'ES256', 'EdDSA'),
+)
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'api.authentication.ShellUIJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'api.permissions.IsApprovedUser',
@@ -340,12 +363,26 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'FromEdwin Monitor API',
-    'DESCRIPTION': 'REST API for managing monitoring projects, availability, pages, incidents, and reports.',
+    'DESCRIPTION': (
+        'REST API for managing monitoring projects, availability, pages, incidents, and reports. '
+        f'Authenticate with a ShellUI JWT from {SHELLUI_JWT_ORIGIN}.'
+    ),
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/v1/',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     'SERVE_AUTHENTICATION': [],
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'bearerAuth': {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+                'description': f'ShellUI access token from {SHELLUI_JWT_ORIGIN}',
+            },
+        },
+    },
+    'SECURITY': [{'bearerAuth': []}],
 }
 

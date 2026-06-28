@@ -86,6 +86,8 @@ services:
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS-}
       PROMETHEUS_UI_URL: ${PROMETHEUS_UI_URL-http://localhost:9090}
+      SHELLUI_JWT_ORIGIN: ${SHELLUI_JWT_ORIGIN-https://id.shellui.com}
+      SHELLUI_JWT_SECRET: ${SHELLUI_JWT_SECRET-}
     entrypoint: ["/app/src/entrypoint.sh"]
     working_dir: /app/src
     healthcheck:

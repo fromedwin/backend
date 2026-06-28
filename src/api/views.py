@@ -10,7 +10,6 @@ from fromedwin.decorators import waiting_list_approved_only
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
-from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -370,12 +369,10 @@ class ProfileView(APIView):
 class MeView(APIView):
     permission_classes = [IsApprovedUser]
 
-    @extend_schema(summary='Get current user and API token')
+    @extend_schema(summary='Get current authenticated user')
     def get(self, request):
-        token, _ = Token.objects.get_or_create(user=request.user)
         return Response({
             'user': UserSerializer(request.user).data,
-            'token': token.key,
         })
 
 
@@ -403,5 +400,6 @@ class DashboardView(APIView):
 @login_required
 @waiting_list_approved_only()
 def api_docs(request):
-    token, _ = Token.objects.get_or_create(user=request.user)
-    return render(request, 'api/docs.html', {'api_token': token.key})
+    return render(request, 'api/docs.html', {
+        'shellui_jwt_origin': settings.SHELLUI_JWT_ORIGIN,
+    })
