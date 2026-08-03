@@ -91,6 +91,8 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=fromedwin
       - DOCKER_INFLUXDB_INIT_BUCKET=fromedwin
       - DOCKER_INFLUXDB_INIT_RETENTION=1w # 1 week retention policy
+      # Only applied on first init; keep the same value in .env as INFLUXDB_TOKEN
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-fromedwin-dev-influx-token}
     volumes:
       - ../data/influxdb:/var/lib/influxdb2
     healthcheck:

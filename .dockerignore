@@ -1,0 +1,50 @@
+# Virtualenvs (macOS host .venv must never overwrite the Linux image env)
+.venv/
+apps/
+venv/
+env/
+
+# Local / secrets
+.env
+.env.*
+!.env.example
+
+# Git and IDE
+.git/
+.github/
+.gitignore
+.cursor/
+.vscode/
+.idea/
+*.md
+!README.md
+
+# Dev artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.DS_Store
+
+# Runtime / local data (mounted at runtime)
+data/
+docs/_build/
+src/staticfiles/
+src/fromedwin/staticfiles/
+src/fromedwin/media/
+src/media/
+src/celerybeat-schedule.db
+
+# Frontend / workers node modules
+**/node_modules/
+worker/lighthouse/node_modules/
+
+# Generated monitoring configs
+worker/prometheus/prometheus.yml
+worker/prometheus/alerts/alerts.yml
+worker/alertmanager/alertmanager.yml

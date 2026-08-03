@@ -8,12 +8,15 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Q
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from projects.models import Project
 from .models import Favicon
 from logs.models import CeleryTaskLog
 
 @api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def save_favicon(request, secret_key, project_id):
 
     # Use django settings secret_key to authenticate django worker

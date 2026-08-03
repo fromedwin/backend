@@ -9,12 +9,15 @@ from django.conf import settings
 from django.db.models import Q
 
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 
 from .models import Metrics, Server
 from incidents.models import INCIDENT_SEVERITY_CHOICES
 
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def alerts(request, id):
     """
     Fetched on start by monitor_client to introduce itself and get credentials
@@ -32,6 +35,8 @@ def alerts(request, id):
     return HttpResponse(yaml, content_type="text/plain")
 
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def prometheus(request, id):
     """
     Fetched on start by monitor_client to introduce itself and get credentials
@@ -54,6 +59,8 @@ def prometheus(request, id):
 
 
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def alertmanager(request, id):
     """
     Fetched on start by monitor_client to introduce itself and get credentials
@@ -68,6 +75,8 @@ def alertmanager(request, id):
     return HttpResponse(yaml, content_type="text/plain")
 
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def register(request, secret_key):
     """
     Fetched on start by monitor_client to introduce itself and get credentials
@@ -88,6 +97,8 @@ def register(request, secret_key):
     })
 
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def heartbeat(request, id):
     """
     Called by monitor_client to report status and detect lost of client.

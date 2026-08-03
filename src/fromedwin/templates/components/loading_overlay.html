@@ -1,14 +1,9 @@
 {% comment %}
   Reusable Loading Overlay Component
-  
-  Usage:
-  {% include 'components/loading_overlay.html' with 
-    project_id=project.id 
-    title="Scanning your website..." 
-    description="We're analyzing your website to gather performance data"
-    tasks="favicon,sitemap,prometheus,scraping,lighthouse,reports"
-  %}
-  
+
+  Usage (Django template tags must stay on one line):
+  {% include "components/loading_overlay.html" with project_id=project.id title="Scanning your website..." description="We're analyzing your website to gather performance data" tasks="favicon,sitemap,prometheus,scraping,lighthouse,reports" %}
+
   Parameters:
   - project_id: The project ID for API calls
   - title: Main title for the loading overlay

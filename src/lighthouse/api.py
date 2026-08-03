@@ -11,7 +11,8 @@ from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 
 from projects.models import Pages
 from logs.models import CeleryTaskLog
@@ -20,6 +21,8 @@ from fromedwin.decorators import waiting_list_approved_only
 from constants import LIGHTHOUSE_FORMFACTOR_CHOICES
 
 @api_view(["GET", "POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def report_api(request, secret_key, page_id):
 
     if request.method == "GET":

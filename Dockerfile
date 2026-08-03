@@ -20,6 +20,7 @@ VOLUME /app/collectstatic
 COPY --chown=fromedwin pyproject.toml uv.lock /app/
 
 # Install system dependencies and Python packages with uv
+# (.venv must not be overwritten later — see .dockerignore)
 RUN \
     apk add --no-cache postgresql-libs libstdc++ tzdata nodejs npm curl && \
     apk add --no-cache --virtual .build-deps alpine-sdk postgresql-dev && \
@@ -28,7 +29,7 @@ RUN \
     apk --purge del .build-deps && \
     chown -R fromedwin:fromedwin /app/.venv
 
-# Add in docker image full code base
+# Add application code (excludes .venv via .dockerignore)
 COPY --chown=fromedwin . .
 
 # Ensure entrypoint script is executable

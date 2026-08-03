@@ -63,6 +63,10 @@ start_services() {
         echo "Creating a basic .env file with default values..."
         create_env_file
     fi
+
+    ensure_secret_key
+    ensure_influxdb_token
+    seed_monitoring_configs
     
     echo "Starting Docker services from project root: $PROJECT_ROOT"
     cd "$PROJECT_ROOT" && docker compose $ENV_FILE $COMPOSE_FILES $LOCAL_OVERRIDE_FILE up -d
@@ -121,13 +125,80 @@ build_images() {
 
 # Function to create a basic .env file
 create_env_file() {
-    # Generate a secure SECRET_KEY for Django
-    SECRET_KEY=$(tr -dc 'a-z0-9!@#$%^&*(-_=+)' < /dev/urandom | head -c50)
-    
+    SECRET_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 50)
+    INFLUXDB_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)
+
     cat > "$PROJECT_ROOT/.env" << EOF
 SECRET_KEY=$SECRET_KEY
+INFLUXDB_TOKEN=$INFLUXDB_TOKEN
 EOF
-    echo "Created .env file with default values and generated SECRET_KEY. Please review and customize as needed."
+    echo "Created .env with SECRET_KEY and INFLUXDB_TOKEN. Please review and customize as needed."
+}
+
+# Ensure SECRET_KEY exists in .env (required by Django and heartbeats workers)
+ensure_secret_key() {
+    if [ ! -f "$PROJECT_ROOT/.env" ]; then
+        create_env_file
+        return
+    fi
+
+    if grep -q '^SECRET_KEY=.\+' "$PROJECT_ROOT/.env"; then
+        return
+    fi
+
+    SECRET_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 50)
+    grep -v '^SECRET_KEY=' "$PROJECT_ROOT/.env" > "$PROJECT_ROOT/.env.tmp" || true
+    printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$PROJECT_ROOT/.env.tmp"
+    mv "$PROJECT_ROOT/.env.tmp" "$PROJECT_ROOT/.env"
+    echo "Added generated SECRET_KEY to .env (required by Django and heartbeats)."
+}
+
+# Ensure INFLUXDB_TOKEN exists (used by Django/Telegraf and first-time InfluxDB init)
+ensure_influxdb_token() {
+    if [ ! -f "$PROJECT_ROOT/.env" ]; then
+        create_env_file
+        return
+    fi
+
+    if grep -q '^INFLUXDB_TOKEN=.\+' "$PROJECT_ROOT/.env"; then
+        return
+    fi
+
+    INFLUXDB_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)
+    grep -v '^INFLUXDB_TOKEN=' "$PROJECT_ROOT/.env" > "$PROJECT_ROOT/.env.tmp" || true
+    printf 'INFLUXDB_TOKEN=%s\n' "$INFLUXDB_TOKEN" >> "$PROJECT_ROOT/.env.tmp"
+    mv "$PROJECT_ROOT/.env.tmp" "$PROJECT_ROOT/.env"
+    echo "Added generated INFLUXDB_TOKEN to .env (required for RabbitMQ/metrics stats via InfluxDB)."
+    echo "If InfluxDB was already initialized, recreate its volume or create a matching token in the Influx UI."
+}
+
+# Seed local monitoring configs from templates when bind-mounted paths are empty
+seed_monitoring_configs() {
+    local prometheus_yml="$PROJECT_ROOT/worker/prometheus/prometheus.yml"
+    local prometheus_template="$PROJECT_ROOT/worker/prometheus/prometheus.template.yml"
+    local alerts_yml="$PROJECT_ROOT/worker/prometheus/alerts/alerts.yml"
+    local alerts_template="$PROJECT_ROOT/worker/prometheus/alerts/alerts.template.yml"
+    local alertmanager_yml="$PROJECT_ROOT/worker/alertmanager/alertmanager.yml"
+    local alertmanager_template="$PROJECT_ROOT/worker/alertmanager/alertmanager.template.yml"
+    local blackbox_yml="$PROJECT_ROOT/worker/blackbox/blackbox.yml"
+    local blackbox_template="$PROJECT_ROOT/worker/blackbox/blackbox.template.yml"
+
+    if [ ! -f "$prometheus_yml" ] && [ -f "$prometheus_template" ]; then
+        cp "$prometheus_template" "$prometheus_yml"
+        echo "Seeded worker/prometheus/prometheus.yml from template."
+    fi
+    if [ ! -f "$alerts_yml" ] && [ -f "$alerts_template" ]; then
+        cp "$alerts_template" "$alerts_yml"
+        echo "Seeded worker/prometheus/alerts/alerts.yml from template."
+    fi
+    if [ ! -f "$alertmanager_yml" ] && [ -f "$alertmanager_template" ]; then
+        cp "$alertmanager_template" "$alertmanager_yml"
+        echo "Seeded worker/alertmanager/alertmanager.yml from template."
+    fi
+    if [ ! -f "$blackbox_yml" ] && [ -f "$blackbox_template" ]; then
+        cp "$blackbox_template" "$blackbox_yml"
+        echo "Seeded worker/blackbox/blackbox.yml from template."
+    fi
 }
 
 # Parse command line arguments

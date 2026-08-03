@@ -7,13 +7,10 @@ A reusable loading overlay component that displays progress for multiple tasks w
 Include the component in your template:
 
 ```django
-{% include "components/loading_overlay.html" with 
-  project_id=project.id 
-  title="Scanning your website..." 
-  description="We're analyzing your website to gather performance data"
-  tasks="favicon,sitemap,prometheus,scraping,lighthouse"
-%}
+{% include "components/loading_overlay.html" with project_id=project.id title="Scanning your website..." description="We're analyzing your website to gather performance data" tasks="favicon,sitemap,prometheus,scraping,lighthouse" %}
 ```
+
+> Django template tags cannot span multiple lines — keep the `{% include %}` on a single line.
 
 ## Parameters
 
@@ -69,12 +66,7 @@ The component expects an API endpoint at `/api/project/{project_id}/task_status/
     <h1>Project Dashboard</h1>
     
     <!-- Include the loading overlay -->
-    {% include "components/loading_overlay.html" with 
-      project_id=project.id 
-      title="Processing your project..." 
-      description="We're setting up monitoring for your website"
-      tasks="favicon,sitemap,prometheus,scraping,lighthouse,reports"
-    %}
+    {% include "components/loading_overlay.html" with project_id=project.id title="Processing your project..." description="We're setting up monitoring for your website" tasks="favicon,sitemap,prometheus,scraping,lighthouse,reports" %}
     
     <!-- Your other content here -->
     <div class="mt-8">

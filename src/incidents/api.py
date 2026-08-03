@@ -6,7 +6,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.conf import settings
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .handler import handleAlert
@@ -16,6 +17,8 @@ from availability.models import Service
 from constants import INCIDENT_STATUS, INCIDENT_SEVERITY
 
 @api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def webhook(request, secret_key):
     # Validate secret key to ensure only authorized requests are processed
     if secret_key != settings.SECRET_KEY:

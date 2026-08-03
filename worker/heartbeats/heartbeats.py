@@ -47,7 +47,11 @@ async def main():
     # Collect and generate vars
     BACKEND_URL = os.environ.get("BACKEND_URL", 'http://host.docker.internal:8000')
     SECRET_KEY = os.environ.get("SECRET_KEY")
-    
+    if not SECRET_KEY:
+        raise Exception(
+            "SECRET_KEY is missing. Set it in the project .env so Django and heartbeats share the same key."
+        )
+
     UUID = await register(BACKEND_URL, SECRET_KEY)
 
     SERVER_HEARTBEATS_URL = f'{BACKEND_URL}/clients/heartbeat/{UUID}/'
