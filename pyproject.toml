@@ -1,0 +1,48 @@
+[project]
+name = "fromedwin-monitor"
+version = "0.11.0"
+description = "FromEdwin Monitor backend — Django API for availability, performance, and alerting"
+requires-python = ">=3.12"
+dependencies = [
+    # Django & apps
+    "django==6.0.6",
+    "djangorestframework==3.17.1",
+    "drf-spectacular==0.29.0",
+    "django-allauth==65.18.0",
+    "django-browser-reload==1.21.0",
+    "django-celery-beat==2.9.0",
+    "django-cleanup==9.0.0",
+    "django-cors-headers==4.9.0",
+    "django-cotton==2.7.2",
+    "django-prometheus==2.5.0",
+    "django-storages==1.14.6",
+    "django-tailwind==4.4.2",
+    "django-timezone-field==7.2.2",
+    "django-yamlfield==1.2.2",
+    "dj-database-url==3.1.2",
+    # Runtime
+    "celery==5.6.3",
+    "gunicorn==26.0.0",
+    "psycopg[binary]==3.3.4",
+    "python-dotenv==1.2.2",
+    "pyjwt[crypto]==2.13.0",
+    "sentry-sdk==2.62.0",
+    # Storage & media
+    "boto3==1.43.24",
+    "pillow==12.2.0",
+    # App logic
+    "beautifulsoup4==4.15.0",
+    "humanize==4.15.0",
+    "influxdb-client==1.50.0",
+    "requests==2.34.2",
+    "ultimate-sitemap-parser==1.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "myst-parser==5.1.0",
+    "sphinx==9.1.0",
+    "sphinx-autobuild==2025.8.25",
+    "sphinx-rtd-theme==3.1.0",
+    "sphinxcontrib-mermaid==2.0.2",
+]

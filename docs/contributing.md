@@ -18,11 +18,9 @@ We love your input! We want to make contributing to FromEdwin Monitor as easy an
    git clone https://github.com/your-username/monitor.git
    cd monitor
    ```
-3. **Set up development environment**:
+3. **Set up development environment** (requires [uv](https://docs.astral.sh/uv/)):
    ```bash
-   python3 -m venv apps
-   source apps/bin/activate
-   pip install -r src/requirements.txt
+   uv sync
    ```
 4. **Run the development server**:
    ```bash

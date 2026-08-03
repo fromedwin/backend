@@ -26,7 +26,8 @@ FromEdwin Monitor is a highly opinionated implementation of open-source monitori
 
 ### Prerequisites
 
-- Python 3.12+ (tested with 3.14)
+- [uv](https://docs.astral.sh/uv/) (installs and manages Python)
+- Python 3.12+ (pinned via `.python-version`; tested with 3.14)
 - Docker & Docker Compose
 - Git
 
@@ -38,11 +39,19 @@ FromEdwin Monitor is a highly opinionated implementation of open-source monitori
    cd monitor
    ```
 
-2. **Set up Python environment**
+2. **Install Python dependencies with uv**
    ```bash
-   python3 -m venv apps
-   source apps/bin/activate
-   pip install -r src/requirements.txt
+   uv sync
+   ```
+
+   This creates a local `.venv` and installs everything from `pyproject.toml` / `uv.lock`.
+
+   Useful commands:
+   ```bash
+   uv run python src/manage.py migrate   # run Django management commands
+   uv add <package>                      # add a dependency
+   uv lock                               # refresh the lockfile after edits
+   uv sync                               # install/sync the locked environment
    ```
 
 3. **Start all services**
@@ -109,22 +118,17 @@ Comprehensive documentation is available at [fromedwin-monitor.readthedocs.io](h
 
 To run the documentation locally for development:
 
-1. **Install sphinx-autobuild** (if not already installed):
+1. **Install dependencies** (docs tooling is in the `dev` group, included by default):
    ```bash
-   pip install sphinx-autobuild
+   uv sync
    ```
 
-2. **Navigate to the docs directory**:
+2. **Start the local documentation server**:
    ```bash
-   cd docs
+   uv run sphinx-autobuild ./docs ./docs/_build --port 8001
    ```
 
-3. **Start the local documentation server**:
-   ```bash
-   sphinx-autobuild ./docs ./docs/_build --port 8001
-   ```
-
-4. **Access local documentation** at `http://localhost:8001`
+3. **Access local documentation** at `http://localhost:8001`
 
 The documentation will automatically rebuild when you make changes to the source files.
 
