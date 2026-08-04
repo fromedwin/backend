@@ -28,7 +28,5 @@ jobs:
       run: uv sync --frozen
     - name: Run Migrate
       run: uv run python src/manage.py migrate
-    - name: Install tailwind
-      run: |
-        uv run python src/manage.py tailwind install
-        uv run python src/manage.py tailwind build
+    - name: Run Django system checks
+      run: uv run python src/manage.py check
