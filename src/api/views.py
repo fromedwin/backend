@@ -3,10 +3,7 @@ from urllib.parse import urlparse
 from celery import current_app
 from django.conf import settings
 from django.db.models import Q
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
 
-from fromedwin.decorators import waiting_list_approved_only
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
@@ -395,11 +392,3 @@ class DashboardView(APIView):
                 many=True,
             ).data,
         })
-
-
-@login_required
-@waiting_list_approved_only()
-def api_docs(request):
-    return render(request, 'api/docs.html', {
-        'shellui_jwt_origin': settings.SHELLUI_JWT_ORIGIN,
-    })

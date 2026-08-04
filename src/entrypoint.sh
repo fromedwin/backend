@@ -22,14 +22,6 @@ if [ "$DJANGO_SETTINGS_MODULE" = "fromedwin.settings.prod" ]; then
   python manage.py collectstatic --noinput || { echo "Collectstatic failed!"; exit 1; }
   echo "✓ Static files collected"
   
-  echo "Installing tailwind..."
-  python manage.py tailwind install || { echo "Tailwind install failed!"; exit 1; }
-  echo "✓ Tailwind installed"
-  
-  echo "Building tailwind..."
-  python manage.py tailwind build || { echo "Tailwind build failed!"; exit 1; }
-  echo "✓ Tailwind built"
-  
   echo "======================================"
   echo "ALL SETUP COMPLETED - STARTING GUNICORN"
   echo "======================================"
@@ -52,9 +44,6 @@ else
   python manage.py collectstatic --noinput
   echo "Running migrations in DEVELOPMENT mode..."
   python manage.py migrate
-
-  python manage.py tailwind install
-  python manage.py tailwind start &
 
   # gunicorn fromedwin.wsgi:application --bind 0.0.0.0:${PORT:-8000}
   exec python manage.py runserver 0.0.0.0:${PORT:-8000}

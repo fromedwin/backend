@@ -114,20 +114,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.sites',
-    'django.contrib.sitemaps',
     'corsheaders',
     'rest_framework',
-    'rest_framework.authtoken',
     'drf_spectacular',
     'api',
     'storages',
     'django_celery_beat',
-    'django_cotton',
-    # Tailwind
-    'theme',
-    'tailwind',
-    'django_browser_reload',
     # App
     'availability',
     'incidents',
@@ -139,22 +131,14 @@ INSTALLED_APPS = [
     'profile',
     'projects',
     'reports',
-    'website',
-    'status',
     'workers',
     # Statistics
     'django_prometheus',
-    # Authentication
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.github',
     # Django cleanup needs to be last!
     'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = (
-    'allauth.account.middleware.AccountMiddleware',
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -166,7 +150,6 @@ MIDDLEWARE = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
     'profile.middleware.set_timezone',
-    'django_browser_reload.middleware.BrowserReloadMiddleware',
 )
 
 ROOT_URLCONF = 'fromedwin.urls'
@@ -205,19 +188,7 @@ else:
 # Authentication backends
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 )
-
-# Authentication settings
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
-ACCOUNT_EMAIL_VERIFICATION = 'none'
-
-# Social account settings
-SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create user account without signup form
-SOCIALACCOUNT_EMAIL_REQUIRED = False  # Don't require email from provider
-SOCIALACCOUNT_QUERY_EMAIL = True  # Try to get email from provider if available
 
 # Email settings
 CONTACT_NAME = os.environ.get('CONTACT_NAME', 'FromEdwin')
@@ -248,20 +219,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Social authentication providers
-SOCIALACCOUNT_PROVIDERS = {
-    'github': {
-        "APP": {
-            "client_id": os.getenv("GITHUB_OAUTH_CLIENT_ID"),
-            "secret": os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
-            "key": ""
-        },
-        'SCOPE': [
-            'user',
-        ],
-    }
-}
-
 # Heartbeat configuration
 HEARTBEAT_INTERVAL = 10  # client will call server every HEARTBEAT_INTERVAL seconds
 
@@ -271,7 +228,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
-SITE_ID = 1
 
 # Freemium limits
 FREEMIUM_PROJECTS = 3
