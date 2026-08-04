@@ -65,7 +65,6 @@ start_services() {
     fi
 
     ensure_secret_key
-    ensure_influxdb_token
     seed_monitoring_configs
     
     echo "Starting Docker services from project root: $PROJECT_ROOT"
@@ -126,13 +125,11 @@ build_images() {
 # Function to create a basic .env file
 create_env_file() {
     SECRET_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 50)
-    INFLUXDB_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)
 
     cat > "$PROJECT_ROOT/.env" << EOF
 SECRET_KEY=$SECRET_KEY
-INFLUXDB_TOKEN=$INFLUXDB_TOKEN
 EOF
-    echo "Created .env with SECRET_KEY and INFLUXDB_TOKEN. Please review and customize as needed."
+    echo "Created .env with SECRET_KEY. Please review and customize as needed."
 }
 
 # Ensure SECRET_KEY exists in .env (required by Django and heartbeats workers)
@@ -151,25 +148,6 @@ ensure_secret_key() {
     printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$PROJECT_ROOT/.env.tmp"
     mv "$PROJECT_ROOT/.env.tmp" "$PROJECT_ROOT/.env"
     echo "Added generated SECRET_KEY to .env (required by Django and heartbeats)."
-}
-
-# Ensure INFLUXDB_TOKEN exists (used by Django/Telegraf and first-time InfluxDB init)
-ensure_influxdb_token() {
-    if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        create_env_file
-        return
-    fi
-
-    if grep -q '^INFLUXDB_TOKEN=.\+' "$PROJECT_ROOT/.env"; then
-        return
-    fi
-
-    INFLUXDB_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)
-    grep -v '^INFLUXDB_TOKEN=' "$PROJECT_ROOT/.env" > "$PROJECT_ROOT/.env.tmp" || true
-    printf 'INFLUXDB_TOKEN=%s\n' "$INFLUXDB_TOKEN" >> "$PROJECT_ROOT/.env.tmp"
-    mv "$PROJECT_ROOT/.env.tmp" "$PROJECT_ROOT/.env"
-    echo "Added generated INFLUXDB_TOKEN to .env (required for RabbitMQ/metrics stats via InfluxDB)."
-    echo "If InfluxDB was already initialized, recreate its volume or create a matching token in the Influx UI."
 }
 
 # Seed local monitoring configs from templates when bind-mounted paths are empty

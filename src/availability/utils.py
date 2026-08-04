@@ -1,195 +1,104 @@
 import logging
-from django.conf import settings
-from influxdb_client import InfluxDBClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .models import Service
+from fromedwin.prometheus import query, query_range
 
-def get_project_stats(project_id, duration=60*60):
-    """"
-        get_project_stats fetch project data from influxDB and bundle them into a dictionary
-    """
-    
-    url = settings.INFLUXDB_URL
-    token = settings.INFLUXDB_TOKEN
-    org = settings.INFLUXDB_ORG
-    bucket = settings.INFLUXDB_BUCKET
+logger = logging.getLogger(__name__)
 
-    stats = {}
+PROBE_LAST_METRICS = (
+    "probe_http_status_code",
+    "probe_http_ssl",
+    "probe_http_redirects",
+    "probe_http_version",
+    "probe_tls_version_info",
+    "probe_ssl_earliest_cert_expiry",
+)
 
-    # Connect to InfluxDB
-    with InfluxDBClient(url=url, token=token, org=org) as client:
-        query_api = client.query_api()
 
-        # Define your Flux query
-        flux_query = f'''
-        from(bucket: "{bucket}")
-            |> range(start: -1d) 
-            |> filter(fn: (r) => r["_field"] == "probe_http_status_code" or r["_field"] == "probe_http_ssl" or r["_field"] == "probe_http_redirects" or r["_field"] == "probe_http_version" or r["_field"] == "probe_tls_version_info" or r["_field"] == "probe_ssl_earliest_cert_expiry")
-            |> filter(fn: (r) => r["project"] == "{project_id}")
-            |> last()
-        '''
+def _service_title(service_id: str) -> str | None:
+    try:
+        return Service.objects.get(pk=service_id).title
+    except Service.DoesNotExist:
+        return None
 
-        services = {}
 
+def _ensure_service(services: dict, service_id: str) -> dict:
+    if service_id not in services:
+        title = _service_title(service_id)
+        services[service_id] = {"title": title} if title else {}
+    return services[service_id]
+
+
+def _load_last_probe_fields(label: str, label_value: str) -> dict:
+    """Fetch latest probe_* samples for a project or user label."""
+    metric_re = "|".join(PROBE_LAST_METRICS)
+    promql = f'{{__name__=~"{metric_re}",{label}="{label_value}"}}'
+    services: dict = {}
+
+    for series in query(promql):
+        metric = series.get("metric", {})
+        service_id = metric.get("service")
+        field = metric.get("__name__")
+        if not service_id or not field:
+            continue
         try:
-            # Execute the query
-            result = query_api.query(org=org, query=flux_query)
-            print(result)
-            for table in result:
-                for record in table.records:
-                    service_name = record['service']
-                    if service_name not in services:
-                        services[service_name] = {
-                            'title': Service.objects.get(pk=service_name).title,
-                        }
-                    services[service_name][record.get_field()] = record.get_value()
+            value = float(series["value"][1])
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+        entry = _ensure_service(services, service_id)
+        entry[field] = value
 
-        except Exception as e:
-            logging.error(f'Error querying InfluxDB: {e}')
-        
-        # Calculate time range
-        time_range_stop = datetime.utcnow() - timedelta(seconds=60)
-        time_range_start = time_range_stop - timedelta(seconds=duration)
-
-        flux_query = f'''
-        from(bucket: "{bucket}")
-            |> range(start: {time_range_start.isoformat()}Z, stop: {time_range_stop.isoformat()}Z)
-            |> filter(fn: (r) => r["_measurement"] == "prometheus_remote_write")
-            |> filter(fn: (r) => r["_field"] == "probe_duration_seconds")
-            |> filter(fn: (r) => r["project"] == "{project_id}")
-            |> aggregateWindow(every: 1m, fn: mean, createEmpty: true)
-            |> fill(value: 0.0)
-            |> yield(name: "mean")
-        '''
-        try:
-            # Execute the query
-            result = query_api.query(org=org, query=flux_query)
-            # print(result)
-            for table in result:
-                # print(table)
-                for record in table.records:
-                    service_id = record['service']
-                    if service_id not in services:
-                        services[service_id] = {}
-                    if 'duration_seconds' not in services[service_id]:
-                        services[service_id]['duration_seconds'] = []
+    return services
 
 
-                    timestamp = record.get_time().strftime('%Y-%m-%dT%H:%M:%S')
-                    # Find existing entry with the same timestamp
-                    index = -1
-                    for i, entry in enumerate(services[service_id]['duration_seconds']):
-                        if entry[0] == timestamp:
-                            index = i
-                            break
-                    
-                    if index == -1:
-                        services[service_id]['duration_seconds'].append([timestamp, record.get_value()])
-                    else:
-                        value = services[service_id]['duration_seconds'][index][1] if services[service_id]['duration_seconds'][index][1] is not None else 0
-                        if value == 0:
-                            services[service_id]['duration_seconds'][index][1] = record.get_value()
+def get_project_stats(project_id, duration=60 * 60):
+    """Fetch project probe metrics from Prometheus and bundle them for the UI."""
+    services = _load_last_probe_fields("project", str(project_id))
 
+    time_range_stop = datetime.now(timezone.utc) - timedelta(seconds=60)
+    time_range_start = time_range_stop - timedelta(seconds=duration)
 
-        except Exception as e:
-            logging.error(f'Error querying InfluxDB: {e}')
+    for series in query_range(
+        f'probe_duration_seconds{{project="{project_id}"}}',
+        start=time_range_start,
+        end=time_range_stop,
+        step="60s",
+    ):
+        service_id = series.get("metric", {}).get("service")
+        if not service_id:
+            continue
+        entry = _ensure_service(services, service_id)
+        points = entry.setdefault("duration_seconds", [])
+        for ts, raw in series.get("values", []):
+            try:
+                value = float(raw) if raw is not None else 0.0
+            except (TypeError, ValueError):
+                value = 0.0
+            timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            )
+            existing = next((i for i, p in enumerate(points) if p[0] == timestamp), -1)
+            if existing == -1:
+                points.append([timestamp, value])
+            elif points[existing][1] in (None, 0):
+                points[existing][1] = value
 
-        stats['services'] = services
-
-    return stats
+    return {"services": services}
 
 
 def get_user_stats(user_id):
-    """"
-        get_project_stats fetch project data from influxDB and bundle them into a dictionary
-    """
-    
-    url = settings.INFLUXDB_URL
-    token = settings.INFLUXDB_TOKEN
-    org = settings.INFLUXDB_ORG
-    bucket = settings.INFLUXDB_BUCKET
+    """Fetch latest probe metrics for all services owned by a user."""
+    return {"services": _load_last_probe_fields("user", str(user_id))}
 
-    stats = {}
-
-    # Connect to InfluxDB
-    with InfluxDBClient(url=url, token=token, org=org) as client:
-        query_api = client.query_api()
-
-        # Define your Flux query
-        flux_query = f'''
-        from(bucket: "{bucket}")
-            |> range(start: -1d) 
-            |> filter(fn: (r) => r["_field"] == "probe_http_status_code" or r["_field"] == "probe_http_ssl" or r["_field"] == "probe_http_redirects" or r["_field"] == "probe_http_version" or r["_field"] == "probe_tls_version_info" or r["_field"] == "probe_ssl_earliest_cert_expiry")
-            |> filter(fn: (r) => r["user"] == "{user_id}")
-            |> last()
-        '''
-
-        services = {}
-
-        try:
-            # Execute the query
-            result = query_api.query(org=org, query=flux_query)
-            for table in result:
-                for record in table.records:
-                    service_name = record['service']
-                    if service_name not in services:
-                        services[service_name] = {
-                            'title': Service.objects.get(pk=service_name).title,
-                        }
-                    services[service_name][record.get_field()] = record.get_value()
-
-        except Exception as e:
-            logging.error(f'Error querying InfluxDB: {e}')
-        
-        stats['services'] = services
-
-    return stats
 
 def is_project_monitored(project_id):
-    """
-        Check if service is monitored
-    """
-    url = settings.INFLUXDB_URL
-    token = settings.INFLUXDB_TOKEN
-    org = settings.INFLUXDB_ORG
-    bucket = settings.INFLUXDB_BUCKET
-
-    result = False
-
-    # Connect to InfluxDB
-    with InfluxDBClient(url=url, token=token, org=org) as client:
-        query_api = client.query_api()
-
-        # Define your Flux query to return only the last value
-        # Add a range to bound the query, e.g., last 1 day
-        flux_query = f'''
-        from(bucket: "{bucket}")
-            |> range(start: -1d)
-            |> filter(fn: (r) => r["_measurement"] == "prometheus_remote_write")
-            |> filter(fn: (r) => r["_field"] == "probe_duration_seconds")
-            |> filter(fn: (r) => r["project"] == "{project_id}")
-            |> last()
-        '''
-
-        services = {}
-
+    """Return True if Prometheus has recent probe_duration_seconds for the project."""
+    results = query(f'probe_duration_seconds{{project="{project_id}"}}')
+    for series in results:
         try:
-            # Execute the query
-            result = query_api.query(org=org, query=flux_query)
-            for table in result:
-                for record in table.records:
-                    service_name = record['service']
-                    if service_name not in services:
-                        services[service_name] = {
-                            'title': Service.objects.get(pk=service_name).title,
-                        }
-                    services[service_name][record.get_field()] = record.get_value()
-                    if record.get_value() > 0:
-                        result = True
-
-        except Exception as e:
-            logging.error(f'Error querying InfluxDB: {e}')
-            raise e
-
-    return result
+            if float(series["value"][1]) > 0:
+                return True
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+    return False

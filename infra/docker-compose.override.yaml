@@ -11,8 +11,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      influxdb:
-        condition: service_healthy
     environment:
       DJANGO_SETTINGS_MODULE: "fromedwin.settings.dev"
     volumes:
@@ -57,13 +55,6 @@ services:
         condition: service_healthy
     volumes:
       - ../worker/blackbox/blackbox.yml:/etc/prometheus/blackbox.yml:ro
-
-  telegraf:
-    depends_on:
-      django:
-        condition: service_healthy
-      influxdb:
-        condition: service_healthy
 
   heartbeats:
     depends_on:

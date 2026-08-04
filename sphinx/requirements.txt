@@ -73,7 +73,6 @@ hyperlink==21.0.0
 idna==3.18
 imagesize==2.0.0
 importlib_metadata==9.0.0
-influxdb-client==1.50.0
 itemadapter==0.13.1
 itemloaders==1.4.0
 jinja2-time==0.2.0

@@ -27,7 +27,7 @@ The base settings file contains all common configuration that applies to every e
 
 ### Third-Party Services
 - **Celery**: Message queue configuration for background tasks
-- **InfluxDB**: Time-series database for metrics storage
+- **Prometheus**: Time-series metrics store queried via PromQL
 - **Sentry**: Error tracking and performance monitoring
 - **S3 Storage**: Cloud storage configuration (optional)
 
@@ -119,11 +119,9 @@ CORS_ALLOWED_ORIGINS=https://app.fromedwin.com,http://localhost:4000
 SENTRY_DSN=https://your-sentry-dsn
 SENTRY_ENVIRONMENT=production
 
-# InfluxDB (Metrics Storage)
-INFLUXDB_URL=http://localhost:8086
-INFLUXDB_TOKEN=your-influxdb-token
-INFLUXDB_ORG=your-organization
-INFLUXDB_BUCKET=your-bucket
+# Prometheus (metrics API used by Django)
+PROMETHEUS_URL=http://localhost:9090
+PROMETHEUS_UI_URL=http://localhost:9090
 
 # Celery (Message Queue)
 CELERY_BROKER_URL=amqp://user:pass@localhost:5672/

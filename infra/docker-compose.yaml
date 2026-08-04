@@ -27,7 +27,6 @@ services:
       EMAIL_HOST_USER: ${EMAIL_HOST_USER-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS-}
-      INFLUXDB_UI_URL: ${INFLUXDB_UI_URL-http://localhost:8086}
       CELERY_BROKER_UI_URL: ${CELERY_BROKER_UI_URL-http://localhost:15672}
       PROMETHEUS_UI_URL: ${PROMETHEUS_UI_URL-http://localhost:9090}
     working_dir: /app/src
@@ -76,16 +75,14 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL-}
       CELERY_BROKER_UI_URL: ${CELERY_BROKER_UI_URL-http://localhost:15672}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL-amqp://admin:adminadmin@rabbitmq}
-      INFLUXDB_URL: ${INFLUXDB_URL-http://influxdb:8086} # access parent container
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN-}
-      INFLUXDB_UI_URL: ${INFLUXDB_UI_URL-http://localhost:8086}
+      PROMETHEUS_URL: ${PROMETHEUS_URL-http://prometheus:9090}
+      PROMETHEUS_UI_URL: ${PROMETHEUS_UI_URL-http://localhost:9090}
       DJANGO_SETTINGS_MODULE: "fromedwin.settings.prod"
       EMAIL_HOST: ${EMAIL_HOST-}
       EMAIL_PORT: ${EMAIL_PORT-}
       EMAIL_HOST_USER: ${EMAIL_HOST_USER-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS-}
-      PROMETHEUS_UI_URL: ${PROMETHEUS_UI_URL-http://localhost:9090}
       SHELLUI_JWT_ORIGIN: ${SHELLUI_JWT_ORIGIN-https://id.shellui.com}
       SHELLUI_JWT_SECRET: ${SHELLUI_JWT_SECRET-}
     entrypoint: ["/app/src/entrypoint.sh"]

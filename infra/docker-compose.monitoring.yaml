@@ -67,26 +67,6 @@ services:
       - "--config.file=/etc/prometheus/blackbox.yml"
     # user: "65534"
 
-  #
-  # Telegraf read prometheus metrics and store them in InfluxDB
-  #
-  telegraf:
-    build:
-      context: ..
-      dockerfile: services/telegraf/Dockerfile
-    container_name: fromedwin-telegraf
-    networks:
-      - monitoring
-    environment:
-      - INFLUXDB_URL=${INFLUXDB_URL-http://influxdb:8086}
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_BUCKET=fromedwin
-      - INFLUXDB_ORG=fromedwin
-      - TELEGRAF_INTERVAL=${TELEGRAF_INTERVAL-15s}
-      - CELERY_BROKER_METRICS_URL=${CELERY_BROKER_METRICS_URL-http://rabbitmq:15692}
-    ports:
-      - "9273:9273" # Expose Telegraf Prometheus plugin metrics
-
   heartbeats:
     build:
       context: ..

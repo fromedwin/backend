@@ -6,11 +6,11 @@ The application is containerized using Docker Compose and includes all necessary
 
 - **Django Backend**: Main web application running on port 8000
 - **RabbitMQ**: Message broker for task queue management
-- **InfluxDB**: Time series database for metrics storage
+- **PostgreSQL**: Primary application database
 - **Celery Workers**: Background task processing
 - **Lighthouse Workers**: Web performance monitoring
-- **Prometheus & Alertmanager**: Metrics collection and alerting
-- **Telegraf**: Metrics collection and forwarding
+- **Prometheus & Alertmanager**: Metrics storage, PromQL queries, and alerting
+- **Blackbox Exporter**: HTTP/SSL probing for availability
 
 To start the application:
 

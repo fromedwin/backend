@@ -56,8 +56,7 @@ services:
       DATABASE_URL: ${DATABASE_URL-postgresql://admin:adminadmin@host.docker.internal:5432/fromedwin}
       CRAWL4AI_URL: http://crawl4ai:11235
       CELERYD_CONCURRENCY: ${CELERYD_CONCURRENCY-1} # Only run one worker at a time
-      INFLUXDB_URL: ${INFLUXDB_URL-http://influxdb:8086} # access parent container
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN-}
+      PROMETHEUS_URL: ${PROMETHEUS_URL-http://prometheus:9090}
     working_dir: /app/src
     command: ["python", "/app/worker/celery/start_celery_worker.py"]
 

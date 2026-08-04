@@ -33,7 +33,6 @@ dependencies = [
     # App logic
     "beautifulsoup4==4.15.0",
     "humanize==4.15.0",
-    "influxdb-client==1.50.0",
     "requests==2.34.2",
     "ultimate-sitemap-parser==1.8.0",
 ]

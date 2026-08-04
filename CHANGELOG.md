@@ -27,6 +27,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - Migrate backend to RESTful api only, exposing redoc and swagger.
 - Manage Python dependencies with [uv](https://docs.astral.sh/uv/) (`pyproject.toml` + `uv.lock`) (#68)
+- Query Prometheus with PromQL for availability and admin stats; remove InfluxDB and Telegraf
 
 ## [0.10.1] - 2024-09-15
 

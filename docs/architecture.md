@@ -8,7 +8,7 @@ A **typescript worker** run multipel replicas to trigger **lighthouse** reports.
 
 Django generate a **prometheus** config file to trigger monitoring using **blackbox** plugin. **Alertmanager** is connected to prometheus and calling back webhooks to django.
 
-**InfluxDB** store time serie metrics, using **telegraf** to read prometheus metrics. Django can query InfluxDB directly to display metrics.
+**Prometheus** stores time-series metrics (Blackbox probes, RabbitMQ). Django queries Prometheus with PromQL to display availability charts and admin stats.
 
 ```{mermaid}
 graph TD
@@ -21,16 +21,14 @@ graph TD
 
     %% Infrastructure Layer
     RabbitMQ[RabbitMQ<br>Message Broker]
-    InfluxDB[InfluxDB<br>Time Series DB]
-    Telegraf[Telegraf<br>Metrics Collector]
 
     %% Worker Layer
     Celery[Celery Workers<br>Task Processing]
     Lighthouse[Lighthouse Workers<br>Web Performance]
-    Heartbeats[Heartbeats Service<br>Health Monitoring]
+    Heartbeats[Heartbeats Service<br>Config Sync]
 
     %% Monitoring Layer
-    Prometheus[Prometheus<br>Metrics & Alerting]
+    Prometheus[Prometheus<br>Metrics & PromQL]
     Alertmanager[Alertmanager<br>Alert Handling]
     Blackbox[Blackbox Exporter<br>Endpoint Monitoring]
 
@@ -38,13 +36,12 @@ graph TD
     Scheduler[Scheduler<br>Task Scheduling]
 
     %% External Systems
-    Backend[Backend API<br>External System]:::external
+    Backend[Django Backend<br>API + SSR]:::external
     Websites[Monitored Websites<br>External Systems]:::external
 
     %% Connections - Infrastructure
     RabbitMQ -->|Tasks| Celery
     RabbitMQ -->|Tasks| Lighthouse
-    InfluxDB <-->|Store Metrics| Telegraf
     
     %% Connections - Workers
     Celery -->|Results| Backend
@@ -57,16 +54,14 @@ graph TD
     Prometheus -.->|Scrapes Metrics| RabbitMQ
     Prometheus -.->|Scrapes Metrics| Blackbox
     Blackbox -.->|Probes| Websites
-    Telegraf -.->|Collects Metrics| RabbitMQ
-    Telegraf -.->|Collects Metrics| Celery
+    Backend -->|PromQL| Prometheus
+    Alertmanager -->|Webhooks| Backend
     
     %% Connections - Scheduler
     Scheduler -->|Schedules Tasks| RabbitMQ
     
     %% Apply styles
     RabbitMQ:::infrastructure
-    InfluxDB:::infrastructure
-    Telegraf:::infrastructure
     
     Celery:::worker
     Lighthouse:::worker

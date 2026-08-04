@@ -116,10 +116,13 @@ scrape_configs:
   - target_label: __address__
     replacement: blackbox:9115
 
-remote_write:
- - url: "http://telegraf:1234/receive"
-   write_relabel_configs:
-     # Keep only specific metrics by name
-     - source_labels: ["__name__"]
-       regex: "probe_dns_lookup_time_seconds|probe_success|probe_ssl_last_chain_info|probe_ssl_last_chain_expiry_timestamp_seconds|probe_ssl_earliest_cert_expiry|probe_ip_addr_hash|probe_ip_protocol|probe_http_version|probe_http_uncompressed_body_length|probe_http_status_code|probe_http_ssl|probe_http_redirects|probe_http_last_modified_timestamp_seconds|probe_http_duration_seconds|probe_http_content_length|probe_failed_due_to_regex|probe_duration_seconds|probe_tls_version_info"
-       action: keep
+# RabbitMQ queue metrics (consumers, depth) for admin stats
+- job_name: rabbitmq
+  honor_timestamps: true
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  metrics_path: /metrics/per-object
+  scheme: http
+  static_configs:
+  - targets:
+    - rabbitmq:15692
