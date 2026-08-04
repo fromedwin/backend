@@ -164,13 +164,27 @@ def scrape_url(url):
             # Print the results
             print("Filtered URLs:", urls)
 
+            status_code = result.get("status_code")
+            redirected_url = result.get("redirected_url")
+            final_url = result.get("url")
+
+            # If Crawl4AI followed a redirect, prefer redirected_url; fall back to result.url
+            # when it differs from the requested URL.
+            if not redirected_url and final_url:
+                requested = urlparse(url)
+                landed = urlparse(final_url)
+                requested_norm = f"{requested.scheme}://{requested.netloc}{requested.path or '/'}".rstrip('/').lower()
+                landed_norm = f"{landed.scheme}://{landed.netloc}{landed.path or '/'}".rstrip('/').lower()
+                if landed_norm and landed_norm != requested_norm:
+                    redirected_url = final_url
+
             # Return tuple instead of dictionary to match the calling code
             return (
                 title,
                 description,
                 urls,
-                result.get("status_code"),
-                result.get("redirected_url"),
+                status_code,
+                redirected_url,
                 time.time() - start_time,
             )
         else:

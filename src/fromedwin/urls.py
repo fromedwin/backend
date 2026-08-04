@@ -29,6 +29,9 @@ urlpatterns = [
     path('clients/', include('workers.urls')),
     # Alertmanager webhook
     path('alert/<str:secret_key>/', webhook, name='alert'),
+    # Worker callback APIs (lighthouse Node worker + favicon Celery fallback)
+    path('', include('lighthouse.urls')),
+    path('', include('favicons.urls')),
     # Versioned REST API
     path('api/v1/', include('api.urls')),
     # Healthcheck APIs

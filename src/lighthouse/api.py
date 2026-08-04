@@ -87,14 +87,20 @@ def report_api(request, secret_key, page_id):
         duration = timedelta(milliseconds=data['duration']) if data['duration'] else None
     )
 
+    categories = data['report'].get('categories') or {}
+
+    def category_score(key):
+        category = categories.get(key) or {}
+        return category.get('score')
+
     report = LighthouseReport.objects.create(
         page = page,
         form_factor = formFactor,
-        score_performance = data['report']['categories']['performance']['score'],
-        score_accessibility = data['report']['categories']['accessibility']['score'],
-        score_best_practices = data['report']['categories']['best-practices']['score'],
-        score_seo = data['report']['categories']['seo']['score'],
-        score_pwa = data['report']['categories']['pwa']['score'],
+        score_performance = category_score('performance'),
+        score_accessibility = category_score('accessibility'),
+        score_best_practices = category_score('best-practices'),
+        score_seo = category_score('seo'),
+        score_pwa = category_score('pwa'),
         screenshot = screenshot,
         report_json_file = report_json_file,
         celery_task_log = celery_task_log

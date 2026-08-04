@@ -33,6 +33,7 @@ def fetch_sitemap(pk, url, source='unknown'):
 
     # Update sitemap_last_edited to pause fetching until deprecated
     project.sitemap_last_edited = sitemap_last_edited
+    project.sitemap_task_status = 'SUCCESS'
     project.save()
 
     # Reset sitemap on all pages so we can remove pages no longer in sitemap.

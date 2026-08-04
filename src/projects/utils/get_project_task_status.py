@@ -31,14 +31,24 @@ def get_project_task_status(project: Project) -> Dict:
 
     pages = Pages.objects.filter(project=project)
 
-    # Favicon status
-    recent_favicon_log = (
-        CeleryTaskLog.objects
-        .filter(project=project, task_name='favicon_task')
-        .order_by('-created_at')
-        .first()
-    )
-    favicon_status = 'SUCCESS' if recent_favicon_log else 'UNKNOWN'
+    # Favicon status — prefer Favicon.task_status (PENDING while worker runs),
+    # fall back to CeleryTaskLog written on completion.
+    favicon_status = 'UNKNOWN'
+    try:
+        favicon = project.favicon_details
+        if favicon.task_status in ('PENDING', 'SUCCESS', 'FAILURE'):
+            favicon_status = favicon.task_status
+    except Exception:
+        favicon = None
+
+    if favicon_status == 'UNKNOWN':
+        recent_favicon_log = (
+            CeleryTaskLog.objects
+            .filter(project=project, task_name='favicon_task')
+            .order_by('-created_at')
+            .first()
+        )
+        favicon_status = 'SUCCESS' if recent_favicon_log else 'UNKNOWN'
 
     # Sitemap status (prefer concrete evidence via logs)
     recent_sitemap_log = (
@@ -47,7 +57,12 @@ def get_project_task_status(project: Project) -> Dict:
         .order_by('-created_at')
         .first()
     )
-    sitemap_status = 'SUCCESS' if recent_sitemap_log else 'UNKNOWN'
+    if recent_sitemap_log:
+        sitemap_status = 'SUCCESS'
+    elif project.sitemap_task_status == 'PENDING':
+        sitemap_status = 'PENDING'
+    else:
+        sitemap_status = project.sitemap_task_status if project.sitemap_task_status in ('FAILURE',) else 'UNKNOWN'
 
     # Scraping status/progress
     scraping_status = 'UNKNOWN'

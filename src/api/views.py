@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+import json
 
 from celery import current_app
 from django.conf import settings
@@ -60,7 +61,7 @@ from .serializers import (
 class ProjectViewSet(ProjectFilterMixin, viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [IsApprovedUser, IsProjectOwner]
-    queryset = Project.objects.all().order_by('title')
+    queryset = Project.objects.select_related('favicon_details').all().order_by('title')
 
     @extend_schema(summary='Refresh project sitemap')
     @action(detail=True, methods=['post'], url_path='refresh-sitemap')
@@ -76,6 +77,147 @@ class ProjectViewSet(ProjectFilterMixin, viewsets.ModelViewSet):
     def task_status(self, request, pk=None):
         project = self.get_object()
         return Response(get_project_task_status(project))
+
+    @extend_schema(summary='Get Prometheus monitoring stats for project')
+    @action(detail=True, methods=['get'], url_path='monitoring')
+    def monitoring(self, request, pk=None):
+        from datetime import datetime, timezone as dt_timezone
+
+        from availability.utils import get_project_stats, is_project_monitored
+
+        project = self.get_object()
+        try:
+            duration = int(request.query_params.get('duration', 3600))
+        except (TypeError, ValueError):
+            duration = 3600
+        duration = max(60, min(duration, 604800))
+
+        try:
+            stats = get_project_stats(project.id, duration=duration)
+            monitored = is_project_monitored(project.id)
+        except Exception as exc:
+            return Response(
+                {
+                    'project_id': project.id,
+                    'duration': duration,
+                    'is_monitored': False,
+                    'error': str(exc),
+                    'availability': {
+                        '1d': project.availability(days=1),
+                        '7d': project.availability(days=7),
+                        '30d': project.availability(days=30),
+                    },
+                    'services': [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        services_by_id = {
+            str(service.id): service
+            for service in Service.objects.filter(project=project).select_related(
+                'httpcode', 'httpmockedcode',
+            )
+        }
+        now = datetime.now(dt_timezone.utc)
+        services_payload = []
+
+        for service_id, probe in (stats.get('services') or {}).items():
+            service = services_by_id.get(str(service_id))
+            url = None
+            is_critical = None
+            is_enabled = None
+            title = probe.get('title')
+            if service:
+                title = service.title or title
+                is_critical = service.is_critical
+                is_enabled = service.is_enabled
+                try:
+                    url = service.httpcode.url
+                except Exception:
+                    try:
+                        url = service.httpmockedcode.url()
+                    except Exception:
+                        url = project.url
+
+            expiry_ts = probe.get('probe_ssl_earliest_cert_expiry')
+            ssl_expiry_iso = None
+            ssl_days_remaining = None
+            if expiry_ts:
+                try:
+                    expiry_dt = datetime.fromtimestamp(float(expiry_ts), tz=dt_timezone.utc)
+                    ssl_expiry_iso = expiry_dt.isoformat()
+                    ssl_days_remaining = (expiry_dt - now).total_seconds() / 86400
+                except (TypeError, ValueError, OSError, OverflowError):
+                    pass
+
+            latency = probe.get('duration_seconds') or []
+            latest_latency = None
+            if latency:
+                try:
+                    latest_latency = float(latency[-1][1])
+                except (TypeError, ValueError, IndexError):
+                    latest_latency = None
+
+            services_payload.append({
+                'id': int(service_id) if str(service_id).isdigit() else service_id,
+                'title': title,
+                'url': url,
+                'is_critical': is_critical,
+                'is_enabled': is_enabled,
+                'http_status_code': probe.get('probe_http_status_code'),
+                'http_ssl': probe.get('probe_http_ssl'),
+                'http_redirects': probe.get('probe_http_redirects'),
+                'http_version': probe.get('probe_http_version'),
+                'tls_version': probe.get('probe_tls_version_info'),
+                'ssl_earliest_cert_expiry': ssl_expiry_iso,
+                'ssl_days_remaining': ssl_days_remaining,
+                'latency_seconds_latest': latest_latency,
+                'latency_seconds': latency,
+            })
+
+        # Include ORM services that have no Prometheus samples yet
+        seen = {str(item['id']) for item in services_payload}
+        for service_id, service in services_by_id.items():
+            if service_id in seen:
+                continue
+            url = None
+            try:
+                url = service.httpcode.url
+            except Exception:
+                try:
+                    url = service.httpmockedcode.url()
+                except Exception:
+                    url = project.url
+            services_payload.append({
+                'id': service.id,
+                'title': service.title,
+                'url': url,
+                'is_critical': service.is_critical,
+                'is_enabled': service.is_enabled,
+                'http_status_code': None,
+                'http_ssl': None,
+                'http_redirects': None,
+                'http_version': None,
+                'tls_version': None,
+                'ssl_earliest_cert_expiry': None,
+                'ssl_days_remaining': None,
+                'latency_seconds_latest': None,
+                'latency_seconds': [],
+            })
+
+        services_payload.sort(key=lambda item: (item.get('title') or '', item.get('id') or 0))
+
+        return Response({
+            'project_id': project.id,
+            'duration': duration,
+            'is_monitored': monitored,
+            'availability': {
+                '1d': project.availability(days=1),
+                '7d': project.availability(days=7),
+                '30d': project.availability(days=30),
+            },
+            'services': services_payload,
+        })
 
     @extend_schema(summary='Get pages tree for project')
     @action(detail=True, methods=['get'], url_path='pages-tree')
@@ -284,7 +426,7 @@ class ReportViewSet(ProjectFilterMixin, mixins.ListModelMixin, mixins.RetrieveMo
         project = Project.objects.filter(pk=project_id, user=request.user).first()
         if not project:
             raise PermissionDenied('Project not found or access denied.')
-        task = create_report.delay(project_id, project.url)
+        task = create_report.delay(project_id, 'api')
         return Response({
             'detail': f'Report generation queued for "{project.title}".',
             'task_id': task.id,
@@ -307,6 +449,26 @@ class LighthouseReportViewSet(ProjectFilterMixin, mixins.ListModelMixin, mixins.
             qs = qs.filter(page__project_id=project_id)
         return qs
 
+    @extend_schema(summary='Full Lighthouse report JSON (LHR)')
+    @action(detail=True, methods=['get'], url_path='json')
+    def json_report(self, request, pk=None):
+        report = self.get_object()
+        if not report.report_json_file:
+            return Response(
+                {'detail': 'Report JSON file not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            raw = report.report_json_file.read()
+            if isinstance(raw, bytes):
+                raw = raw.decode('utf-8')
+            data = json.loads(raw)
+        except Exception as exc:
+            return Response(
+                {'detail': f'Error loading report: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(data)
 
 class FaviconViewSet(ProjectFilterMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = FaviconSerializer

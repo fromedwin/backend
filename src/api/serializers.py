@@ -36,6 +36,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     is_warning = serializers.SerializerMethodField()
     availability_30d = serializers.SerializerMethodField()
     performance_score = serializers.SerializerMethodField()
+    favicon_url = serializers.SerializerMethodField()
     incidents_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -45,16 +46,52 @@ class ProjectSerializer(serializers.ModelSerializer):
             'sitemap_task_status', 'sitemap_last_edited', 'created_at',
             'is_offline', 'is_degraded', 'is_warning',
             'availability_30d', 'performance_score', 'incidents_count',
+            'favicon_url',
         ]
         read_only_fields = [
             'sitemap_task_status', 'sitemap_last_edited', 'created_at',
             'is_offline', 'is_degraded', 'is_warning',
             'availability_30d', 'performance_score', 'incidents_count',
+            'favicon_url',
         ]
+        extra_kwargs = {
+            'title': {'required': False, 'allow_blank': True},
+            'url': {'required': True},
+        }
 
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+        from urllib.parse import urlparse
+
+        from availability.models import HTTPCodeService, Service
+        from django.conf import settings
+        from notifications.models import Emails
+
+        user = self.context['request'].user
+        if (
+            not user.is_superuser
+            and not user.is_staff
+            and user.projects.count() >= settings.FREEMIUM_PROJECTS
+        ):
+            raise serializers.ValidationError(
+                f'You can only have {settings.FREEMIUM_PROJECTS} projects',
+            )
+
+        url = validated_data.get('url') or ''
+        if not validated_data.get('title') and url:
+            parsed = urlparse(url)
+            validated_data['title'] = parsed.netloc or parsed.path or url
+
+        validated_data['user'] = user
+        project = super().create(validated_data)
+
+        domain = validated_data['title']
+        service = Service.objects.create(project=project, title=domain)
+        if url:
+            HTTPCodeService.objects.create(url=url, service=service)
+        if user.email:
+            Emails.objects.create(project=project, email=user.email)
+
+        return project
 
     def get_is_offline(self, obj):
         return bool(obj.is_offline())
@@ -70,6 +107,15 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_performance_score(self, obj):
         return obj.performance_score()
+
+    def get_favicon_url(self, obj):
+        favicon = getattr(obj, 'favicon_details', None)
+        if not favicon or not favicon.favicon:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(favicon.favicon.url)
+        return favicon.favicon.url
 
 
 class PageSerializer(serializers.ModelSerializer):

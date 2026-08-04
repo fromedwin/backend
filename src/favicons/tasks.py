@@ -12,7 +12,34 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
 from projects.models import Project
+from logs.models import CeleryTaskLog
 from .models import Favicon
+
+
+def _persist_favicon_result(pk, largest_favicon, largest_content, duration):
+    """Write favicon result directly to the DB (Celery worker has Django + DB access)."""
+    project = Project.objects.get(pk=pk)
+    log = CeleryTaskLog.objects.create(
+        project=project,
+        task_name='favicon_task',
+        duration=timedelta(seconds=duration) if duration else None,
+    )
+
+    favicon, _ = Favicon.objects.get_or_create(project=project)
+    favicon.celery_task_log = log
+    favicon.last_edited = timezone.now()
+
+    if not largest_favicon or not largest_content:
+        favicon.task_status = 'FAILURE'
+        favicon.save()
+        return
+
+    favicon_content = BytesIO(base64.b64decode(largest_content))
+    filename = largest_favicon['url'].split('/')[-1] or 'favicon.ico'
+    favicon.favicon.save(filename, favicon_content, save=False)
+    favicon.task_status = 'SUCCESS'
+    favicon.save()
+
 
 @shared_task()
 def fetch_favicon(pk, url):
@@ -22,6 +49,11 @@ def fetch_favicon(pk, url):
     duration = None
     start_time = time.time()
     try:
+        Favicon.objects.update_or_create(
+            project_id=pk,
+            defaults={'task_status': 'PENDING', 'last_edited': timezone.now()},
+        )
+
         # Get the HTML content of the webpage
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -41,19 +73,15 @@ def fetch_favicon(pk, url):
         default_favicon = f"{parsed_url.scheme}://{parsed_url.netloc}/favicon.ico"
         favicons.append(default_favicon)
 
-
-        # If one url in favicon end with svg we keep this ad largest favicon
+        # Prefer the largest raster icon
         for favicon_url in favicons:
             try:
-                # Fetch the favicon image
                 favicon_response = requests.get(favicon_url, timeout=10)
                 favicon_response.raise_for_status()
 
-                # Open the image and get its size
                 image = Image.open(BytesIO(favicon_response.content))
                 width, height = image.size
 
-                # Update the largest favicon if this one is larger
                 if width * height > largest_size[0] * largest_size[1]:
                     largest_size = (width, height)
                     largest_favicon = {
@@ -61,26 +89,34 @@ def fetch_favicon(pk, url):
                         'width': width,
                         'height': height,
                     }
+                    largest_content = base64.b64encode(favicon_response.content).decode('utf-8')
 
             except Exception as e:
                 logging.info(f"Error fetching or processing {favicon_url}: {e}")
 
-        # If no image found, we try to get the first svg found
+        # If no image found, try the first SVG
         if not largest_favicon:
-            if any(favicon_url.endswith('.svg') for favicon_url in favicons):
-                largest_favicon = {
-                    'url': next(favicon_url for favicon_url in favicons if favicon_url.endswith('.svg')),
-                    'width': 0,
-                    'height': 0,
-                }
+            svg_url = next((favicon_url for favicon_url in favicons if favicon_url.endswith('.svg')), None)
+            if svg_url:
+                try:
+                    svg_response = requests.get(svg_url, timeout=10)
+                    svg_response.raise_for_status()
+                    largest_favicon = {
+                        'url': svg_url,
+                        'width': 0,
+                        'height': 0,
+                    }
+                    largest_content = base64.b64encode(svg_response.content).decode('utf-8')
+                except Exception as e:
+                    logging.info(f"Error fetching SVG favicon {svg_url}: {e}")
 
-        if largest_favicon:
-            logging.debug(f"Largest favicon found: {largest_favicon['url']} ({largest_favicon['width']}x{largest_favicon['height']})")
-            # Fetch the content of the favicon
-            response = requests.get(largest_favicon['url'])
-            response.raise_for_status()  # Ensure the request was successful
-
-            # Wrap the content in a BytesIO object
+        if largest_favicon and not largest_content:
+            logging.debug(
+                f"Largest favicon found: {largest_favicon['url']} "
+                f"({largest_favicon['width']}x{largest_favicon['height']})"
+            )
+            response = requests.get(largest_favicon['url'], timeout=10)
+            response.raise_for_status()
             largest_content = base64.b64encode(response.content).decode('utf-8')
 
     except Exception as e:
@@ -88,16 +124,23 @@ def fetch_favicon(pk, url):
     finally:
         duration = time.time() - start_time
         try:
-            response = requests.post(f'{settings.BACKEND_URL}/api/save_favicon/{settings.SECRET_KEY}/{pk}/', json={
-                'favicon_url': largest_favicon['url'] if largest_favicon else None,
-                'favicon_content': largest_content,
-                'duration': duration,
-            })
-            response.raise_for_status()
+            _persist_favicon_result(pk, largest_favicon, largest_content, duration)
         except Exception as e:
-            logging.error(f"Error sending the result to the backend: {e}")
+            logging.error(f"Error saving favicon result to the database: {e}")
+            # Fallback for older worker deployments that still rely on the HTTP callback.
+            try:
+                requests.post(
+                    f'{settings.BACKEND_URL}/api/save_favicon/{settings.SECRET_KEY}/{pk}/',
+                    json={
+                        'favicon_url': largest_favicon['url'] if largest_favicon else None,
+                        'favicon_content': largest_content,
+                        'duration': duration,
+                    },
+                    timeout=30,
+                ).raise_for_status()
+            except Exception as callback_error:
+                logging.error(f"Error sending the result to the backend: {callback_error}")
         logging.info(f"Task completed for project {pk}")
-
 
 
 @shared_task(bind=True)
@@ -131,7 +174,7 @@ def queue_deprecated_favicons(self):
     projects = Project.objects.filter(
         Q(favicon_details__last_edited__lt=six_hours_ago) | Q(favicon_details__isnull=True)
     )
-    
+
     for project in projects:
         favicon, created = Favicon.objects.get_or_create(
             project=project,
