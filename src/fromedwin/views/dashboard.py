@@ -6,9 +6,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 
-from allauth.socialaccount.models import SocialApp
-from rest_framework.authtoken.models import Token
-
 from fromedwin.decorators import waiting_list_approved_only
 
 from workers.models import Server
