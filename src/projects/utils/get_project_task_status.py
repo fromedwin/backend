@@ -34,10 +34,13 @@ def get_project_task_status(project: Project) -> Dict:
     # Favicon status — prefer Favicon.task_status (PENDING while worker runs),
     # fall back to CeleryTaskLog written on completion.
     favicon_status = 'UNKNOWN'
+    favicon = None
     try:
         favicon = project.favicon_details
         if favicon.task_status in ('PENDING', 'SUCCESS', 'FAILURE'):
             favicon_status = favicon.task_status
+        if favicon_status == 'SUCCESS' and not favicon.favicon:
+            favicon_status = 'FAILURE'
     except Exception:
         favicon = None
 
@@ -48,7 +51,8 @@ def get_project_task_status(project: Project) -> Dict:
             .order_by('-created_at')
             .first()
         )
-        favicon_status = 'SUCCESS' if recent_favicon_log else 'UNKNOWN'
+        has_stored_favicon = bool(favicon and favicon.favicon)
+        favicon_status = 'SUCCESS' if recent_favicon_log and has_stored_favicon else 'UNKNOWN'
 
     # Sitemap status (prefer concrete evidence via logs)
     recent_sitemap_log = (

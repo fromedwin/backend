@@ -76,7 +76,7 @@ def get_project_stats(project_id, duration=60 * 60):
             except (TypeError, ValueError):
                 value = 0.0
             timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S"
+                "%Y-%m-%dT%H:%M:%SZ"
             )
             existing = next((i for i, p in enumerate(points) if p[0] == timestamp), -1)
             if existing == -1:

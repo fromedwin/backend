@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
@@ -112,10 +113,16 @@ class ProjectSerializer(serializers.ModelSerializer):
         favicon = getattr(obj, 'favicon_details', None)
         if not favicon or not favicon.favicon:
             return None
+        url = favicon.favicon.url
+        if url.startswith(('http://', 'https://')):
+            return url
         request = self.context.get('request')
         if request:
-            return request.build_absolute_uri(favicon.favicon.url)
-        return favicon.favicon.url
+            return request.build_absolute_uri(url)
+        backend_url = (getattr(settings, 'BACKEND_URL', '') or '').rstrip('/')
+        if backend_url:
+            return f'{backend_url}{url if url.startswith("/") else f"/{url}"}'
+        return url
 
 
 class PageSerializer(serializers.ModelSerializer):
@@ -347,12 +354,18 @@ class FaviconSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_favicon_url(self, obj):
-        if obj.favicon:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.favicon.url)
-            return obj.favicon.url
-        return None
+        if not obj.favicon:
+            return None
+        url = obj.favicon.url
+        if url.startswith(('http://', 'https://')):
+            return url
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(url)
+        backend_url = (getattr(settings, 'BACKEND_URL', '') or '').rstrip('/')
+        if backend_url:
+            return f'{backend_url}{url if url.startswith("/") else f"/{url}"}'
+        return url
 
 
 class CeleryTaskLogSerializer(serializers.ModelSerializer):

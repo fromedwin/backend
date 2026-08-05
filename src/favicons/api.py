@@ -11,8 +11,17 @@ from django.db.models import Q
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from projects.models import Project
+from urllib.parse import urlparse
+
 from .models import Favicon
 from logs.models import CeleryTaskLog
+
+
+def _favicon_filename(url):
+    name = urlparse(url).path.rsplit('/', 1)[-1] or 'favicon.ico'
+    if '?' in name:
+        name = name.split('?', 1)[0]
+    return name or 'favicon.ico'
 
 @api_view(["POST"])
 @authentication_classes([])
@@ -32,15 +41,7 @@ def save_favicon(request, secret_key, project_id):
     favicon_url = data.get('favicon_url')
     duration = data.get('duration')
 
-    # Create celery task log
-    CeleryTaskLog.objects.create(
-        project=project,
-        task_name='favicon_task',
-        duration=timedelta(seconds=duration) if duration else None
-    )
-
-    # Get or create favicon record
-    favicon, created = Favicon.objects.get_or_create(project=project)
+    favicon, _ = Favicon.objects.get_or_create(project=project)
     # If favicon_url is null or undefined, it means worker couldn't find a favicon
     # We then set the status to FAILURE so we can react and retry if needed
     if not favicon_url:
@@ -48,15 +49,20 @@ def save_favicon(request, secret_key, project_id):
         favicon.last_edited = timezone.now()
         favicon.save()
         return JsonResponse({})
-    
-    # Generate data for the favicon
+
     favicon_content_base64 = data.get('favicon_content')
     favicon_content = base64.b64decode(favicon_content_base64)
     favicon_content = BytesIO(favicon_content)
 
-    favicon.favicon.save(data.get('favicon_url').split('/')[-1], favicon_content)
+    favicon.favicon.save(_favicon_filename(favicon_url), favicon_content, save=False)
     favicon.task_status = 'SUCCESS'
     favicon.last_edited = timezone.now()
     favicon.save()
+
+    CeleryTaskLog.objects.create(
+        project=project,
+        task_name='favicon_task',
+        duration=timedelta(seconds=duration) if duration else None,
+    )
 
     return JsonResponse({}) 

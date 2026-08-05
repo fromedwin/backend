@@ -16,28 +16,36 @@ from logs.models import CeleryTaskLog
 from .models import Favicon
 
 
+def _favicon_filename(url):
+    """Derive a safe storage filename from a favicon URL."""
+    name = urlparse(url).path.rsplit('/', 1)[-1] or 'favicon.ico'
+    if '?' in name:
+        name = name.split('?', 1)[0]
+    return name or 'favicon.ico'
+
+
 def _persist_favicon_result(pk, largest_favicon, largest_content, duration):
     """Write favicon result directly to the DB (Celery worker has Django + DB access)."""
     project = Project.objects.get(pk=pk)
+    favicon, _ = Favicon.objects.get_or_create(project=project)
+    favicon.last_edited = timezone.now()
+
+    if not largest_favicon or not largest_content:
+        favicon.task_status = 'FAILURE'
+        favicon.save(update_fields=['task_status', 'last_edited', 'updated_at'])
+        return
+
+    favicon_content = BytesIO(base64.b64decode(largest_content))
+    filename = _favicon_filename(largest_favicon['url'])
+    favicon.favicon.save(filename, favicon_content, save=False)
+    favicon.task_status = 'SUCCESS'
+
     log = CeleryTaskLog.objects.create(
         project=project,
         task_name='favicon_task',
         duration=timedelta(seconds=duration) if duration else None,
     )
-
-    favicon, _ = Favicon.objects.get_or_create(project=project)
     favicon.celery_task_log = log
-    favicon.last_edited = timezone.now()
-
-    if not largest_favicon or not largest_content:
-        favicon.task_status = 'FAILURE'
-        favicon.save()
-        return
-
-    favicon_content = BytesIO(base64.b64decode(largest_content))
-    filename = largest_favicon['url'].split('/')[-1] or 'favicon.ico'
-    favicon.favicon.save(filename, favicon_content, save=False)
-    favicon.task_status = 'SUCCESS'
     favicon.save()
 
 

@@ -26,11 +26,11 @@ class Favicon(models.Model):
         related_name='favicon_details',
         help_text="Project this favicon belongs to"
     )
-    favicon = models.ImageField(
+    favicon = models.FileField(
         upload_to=favicon_upload_path,
         blank=True,
         null=True,
-        help_text="Application's favicon"
+        help_text="Application's favicon",
     )
     task_status = models.CharField(
         max_length=16,
